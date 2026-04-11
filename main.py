@@ -1,12 +1,13 @@
 import asyncio
 import logging
-from datetime import timedelta, datetime, date
-
 import httpx
 import names
 import websockets
 from websockets import WebSocketServerProtocol
 from websockets.exceptions import ConnectionClosedOK
+from datetime import timedelta, datetime, date
+from aiofile import async_open
+from aiopath import AsyncPath
 
 logging.basicConfig(level=logging.INFO)
 
@@ -57,6 +58,13 @@ class Server:
         )
         return response
 
+    async def log_exchange(self, message_exchange: str):
+        apath = AsyncPath("log.txt")
+        await apath.touch(exist_ok=True)
+        async with async_open(apath, 'a') as file:
+            await file.write(f'{datetime.now().replace(microsecond=0)}: Enter message: {message_exchange}\n')
+
+
     async def format_return_exchange(self, message: str) -> str:
         parts: list[str] = message.split(" ")
         days_count: int = 0
@@ -77,6 +85,7 @@ class Server:
         async for message in ws:
             parts: list[str] = message.split(" ")
             if parts[0] == "exchange":
+                await self.log_exchange(message)
                 exchange: str = await self.format_return_exchange(message)
                 await self.send_to_clients(exchange)
             else:
