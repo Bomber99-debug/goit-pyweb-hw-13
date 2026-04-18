@@ -1,6 +1,9 @@
 import platform
 import asyncio
+from typing import Any
+
 import aiohttp
+from aiohttp import ClientError, ClientConnectorError
 import argparse
 from argparse import Namespace
 from datetime import timedelta, datetime, date
@@ -11,11 +14,20 @@ DEFAULT_CURRENCIES: list[str] = ["EUR", "USD"]
 
 async def fetch_exchange_rates(
         session: aiohttp.ClientSession, url: str
-) -> dict[str, object]:
+) -> dict[str, str] | Any:
     """Повертає JSON-відповідь API або словник з повідомленням про помилку."""
     async with session.get(url) as response:
-        if response.status == 200:
-            return await response.json()
+        try:
+            if response.status == 200:
+                return await response.json()
+        except ClientConnectorError as e:
+            return {f"Помилка підключення до {url}: {e}"}
+        except asyncio.TimeoutError:
+            return {f"Тайм-аут запиту до {url}"}
+        except ClientError as e:
+            return {f"Помилка aiohttp: {e}"}
+        except Exception as e:
+            return {f"Непередбачена помилка: {e}"}
         return {"error": "Не вдалося отримати курс валют. Спробуйте пізніше."}
 
 

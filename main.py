@@ -41,9 +41,21 @@ class Server:
     async def request(self, url: str) -> str:
         async with httpx.AsyncClient() as client:
             response: httpx.Response = await client.get(url)
-            if response.status_code == 200:
-                result: dict[str, object] = response.json()
-                return str(result)
+            try:
+                if response.status_code == 200:
+                    result: dict[str, object] = response.json()
+                    return str(result)
+            except httpx.ConnectTimeout:
+                    print("Помилка: Час підключення закінчився")
+            except httpx.ReadTimeout:
+                return "Помилка: Час читання даних минув"
+            except httpx.ConnectError:
+                return "Помилка: Не вдалося підключитися до сервера"
+            except httpx.HTTPStatusError as exc:
+                return f"Помилка HTTP {exc.response.status_code}: {exc.response.text}"
+            except httpx.RequestError as exc:
+                return f"Виникла помилка при запиті: {exc}"
+
             return "Не вдалося отримати курс валют. Спробуйте ще раз пізніше."
 
     def build_date_string(self, days_ago: int) -> str:
