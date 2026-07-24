@@ -1,5 +1,7 @@
 import asyncio
 import logging
+from typing import Any
+
 import httpx
 import names
 import websockets
@@ -11,105 +13,155 @@ from aiopath import AsyncPath
 
 logging.basicConfig(level=logging.INFO)
 
+DEFAULT_CURRENCIES: list[ str ] = [ "EUR", "USD" ]
+
 
 class Server:
-    def __init__(self) -> None:
-        self.clients: set[WebSocketServerProtocol] = set()
+	def __init__(self) -> None:
+		self.clients: set[ WebSocketServerProtocol ] = set()
 
-    async def register(self, ws: WebSocketServerProtocol) -> None:
-        ws.name = names.get_full_name()
-        self.clients.add(ws)
-        logging.info(f"{ws.remote_address} connects")
+	async def register(self, ws: WebSocketServerProtocol) -> None:
+		ws.name = names.get_full_name()
+		self.clients.add(ws)
+		logging.info(f"{ws.remote_address} connects")
 
-    async def unregister(self, ws: WebSocketServerProtocol) -> None:
-        self.clients.remove(ws)
-        logging.info(f"{ws.remote_address} disconnects")
+	async def unregister(self, ws: WebSocketServerProtocol) -> None:
+		self.clients.remove(ws)
+		logging.info(f"{ws.remote_address} disconnects")
 
-    async def send_to_clients(self, message: str) -> None:
-        if self.clients:
-            [await client.send(message) for client in self.clients]
+	async def send_to_clients(self, message: str) -> None:
+		if self.clients:
+			[ await client.send(message) for client in self.clients ]
 
-    async def ws_handler(self, ws: WebSocketServerProtocol) -> None:
-        await self.register(ws)
-        try:
-            await self.distribute(ws)
-        except ConnectionClosedOK:
-            pass
-        finally:
-            await self.unregister(ws)
+	async def ws_handler(self, ws: WebSocketServerProtocol) -> None:
+		await self.register(ws)
+		try:
+			await self.distribute(ws)
+		except ConnectionClosedOK:
+			pass
+		finally:
+			await self.unregister(ws)
 
-    async def request(self, url: str) -> str:
-        async with httpx.AsyncClient() as client:
-            response: httpx.Response = await client.get(url)
-            try:
-                if response.status_code == 200:
-                    result: dict[str, object] = response.json()
-                    return str(result)
-            except httpx.ConnectTimeout:
-                    print("Помилка: Час підключення закінчився")
-            except httpx.ReadTimeout:
-                return "Помилка: Час читання даних минув"
-            except httpx.ConnectError:
-                return "Помилка: Не вдалося підключитися до сервера"
-            except httpx.HTTPStatusError as exc:
-                return f"Помилка HTTP {exc.response.status_code}: {exc.response.text}"
-            except httpx.RequestError as exc:
-                return f"Виникла помилка при запиті: {exc}"
+	async def request(self, url: str) -> dict[ str, Any ] | Any:
+		async with httpx.AsyncClient() as client:
+			response: httpx.Response = await client.get(url)
+			try:
+				if response.status_code == 200:
+					result: dict[ str, object ] = response.json()
+					return result
+			except httpx.ConnectTimeout:
+				print("Помилка: Час підключення закінчився")
+			except httpx.ReadTimeout:
+				return "Помилка: Час читання даних минув"
+			except httpx.ConnectError:
+				return "Помилка: Не вдалося підключитися до сервера"
+			except httpx.HTTPStatusError as exc:
+				return f"Помилка HTTP {exc.response.status_code}: {exc.response.text}"
+			except httpx.RequestError as exc:
+				return f"Виникла помилка при запиті: {exc}"
 
-            return "Не вдалося отримати курс валют. Спробуйте ще раз пізніше."
+			return "Не вдалося отримати курс валют. Спробуйте ще раз пізніше."
 
-    def build_date_string(self, days_ago: int) -> str:
-        """Повертає дату у форматі dd.mm.YYYY для API ПриватБанку."""
-        current_date: date = datetime.now().date()
-        delta: timedelta = timedelta(days=days_ago)
-        return (current_date - delta).strftime("%d.%m.%Y")
+	def build_date_string(self, days_ago: int) -> str:
+		"""Повертає дату у форматі dd.mm.YYYY для API ПриватБанку."""
+		current_date: date = datetime.now().date()
+		delta: timedelta = timedelta(days=days_ago)
+		return (current_date - delta).strftime("%d.%m.%Y")
 
-    async def get_exchange(self, date_string: str) -> str:
-        response: str = await self.request(
-            f"https://api.privatbank.ua/p24api/exchange_rates?date={date_string}"
-        )
-        return response
+	async def get_exchange(self, date_string: str) -> dict:
+		response: dict = await self.request(
+				f"https://api.privatbank.ua/p24api/exchange_rates?date={date_string}",
+				)
+		return response
 
-    async def log_exchange(self, message_exchange: str):
-        apath = AsyncPath("log.txt")
-        await apath.touch(exist_ok=True)
-        async with async_open(apath, 'a') as file:
-            await file.write(f'{datetime.now().replace(microsecond=0)}: Enter message: {message_exchange}\n')
+	async def log_exchange(self, message_exchange: str):
+		apath = AsyncPath("log.txt")
+		await apath.touch(exist_ok=True)
+		async with async_open(apath, 'a') as file:
+			await file.write(f'{datetime.now().replace(microsecond=0)}: Enter message: {message_exchange}\n')
 
+	def format_str(self, exchengs: dict) -> str:
+		if exchengs:
+			return str(
+				f'date: {exchengs[ "date" ]}, '
+				f'baseCurrencyLit: {exchengs[ "baseCurrencyLit" ]}, '
+				f'exchangeRate: '
+				f'sale: {exchengs[ "exchangeRate" ][ 0 ]}',
+					)
 
-    async def format_return_exchange(self, message: str) -> str:
-        parts: list[str] = message.split(" ")
-        days_count: int = 0
+	async def format_return_exchange(self, message: str) -> list[ dict[ str, str ] ]:
+		parts: list[ str ] = message.split(" ")
+		days_count: int = 0
 
-        if len(parts) > 1:
-            raw_days: str = parts[1]
-            if not raw_days.isdigit():
-                return "Кількість днів повинна бути цілим невід’ємним числом."
-            days_count = int(raw_days)
-            if days_count < 0 or days_count > 10:
-                return "Кількість днів повинна бути в межах від 0 до 10."
+		if len(parts) > 1:
+			raw_days: str = parts[ 1 ]
+			if not raw_days.isdigit():
+				return "Кількість днів повинна бути цілим невід’ємним числом."
+			days_count = int(raw_days)
+			if days_count < 0 or days_count > 10:
+				return "Кількість днів повинна бути в межах від 0 до 10."
+		exchanges: list[ dict[ str, str | Any ] ] = [ ]
+		for days in range(days_count):
 
-        date_string: str = self.build_date_string(days_count)
-        exchange: str = await self.get_exchange(date_string)
-        return exchange
+			date_string: str = self.build_date_string(days)
+			exchange: dict = await self.get_exchange(date_string)
 
-    async def distribute(self, ws: WebSocketServerProtocol) -> None:
-        async for message in ws:
-            parts: list[str] = message.split(" ")
-            if parts[0] == "exchange":
-                await self.log_exchange(message)
-                exchange: str = await self.format_return_exchange(message)
-                await self.send_to_clients(exchange)
-            else:
-                await self.send_to_clients(f"{ws.name}: {message}")
+			formatted_rates: dict[ str, float | int | str ] = { }
+
+			for rate_data in exchange[ "exchangeRate" ]:
+				sale_rate: float | int | str = ""
+				purchase_rate: float | int | str = ""
+
+				if not isinstance(rate_data, dict):
+					continue
+
+				if "currency" in rate_data:
+					if rate_data[ "currency" ] in DEFAULT_CURRENCIES:
+						if "saleRateNB" in rate_data:
+							if isinstance(rate_data[ "saleRateNB" ], float) or isinstance(
+									rate_data[ "saleRateNB" ], int,
+									):
+								sale_rate = rate_data[ "saleRateNB" ]
+
+						if "purchaseRateNB" in rate_data:
+							if isinstance(rate_data[ "purchaseRateNB" ], float) or isinstance(
+									rate_data[ "purchaseRateNB" ], int,
+									):
+								purchase_rate = rate_data[ "purchaseRateNB" ]
+
+						formatted_rates = {
+								"currency": rate_data[ "currency" ],
+								"sale"    : sale_rate,
+								"purchase": purchase_rate,
+								}
+
+			data = {
+					"date"           : exchange[ "date" ],
+					"baseCurrencyLit": exchange[ "baseCurrencyLit" ],
+					"exchangeRate"   : [ formatted_rates ],
+					}
+			data: str = self.format_str(data)
+			logging.info(f'data: {data}')
+			exchanges.append(data)
+		return str(exchanges)
+
+	async def distribute(self, ws: WebSocketServerProtocol) -> None:
+		async for message in ws:
+			parts: list[ str ] = message.split(" ")
+			if parts[ 0 ] == "exchange":
+				await self.log_exchange(message)
+				exchange: str = await self.format_return_exchange(message)
+				await self.send_to_clients(exchange)
+			else:
+				await self.send_to_clients(f"{ws.name}: {message}")
 
 
 async def main() -> None:
-    server: Server = Server()
-    # Тримаємо сервер запущеним без завершення main().
-    async with websockets.serve(server.ws_handler, "localhost", 8080):
-        await asyncio.Future()
+	server: Server = Server()
+	# Тримаємо сервер запущеним без завершення main().
+	async with websockets.serve(server.ws_handler, "0.0.0.0", 8080):
+		await asyncio.Future()
 
 
 if __name__ == "__main__":
-    asyncio.run(main())
+	asyncio.run(main())
