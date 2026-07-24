@@ -40,7 +40,7 @@ def build_date_string(days_ago: int) -> str:
 
 def generate_urls(days_count: int):
 	"""Генерує URL-адреси для запиту курсів валют за потрібну кількість днів."""
-	for day_offset in range(days_count + 1):
+	for day_offset in range(days_count):
 		date_string: str = build_date_string(day_offset)
 		yield f"https://api.privatbank.ua/p24api/exchange_rates?date={date_string}"
 
@@ -115,8 +115,8 @@ def parse_args() -> Namespace:
 			"days_count",
 			type=int,
 			nargs="?",
-			choices=(0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10),
-			default=0,
+			choices=(1, 2, 3, 4, 5, 6, 7, 8, 9, 10),
+			default=1,
 			help="Кількість днів, за які потрібно отримати курс валют.",
 			)
 

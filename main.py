@@ -42,22 +42,22 @@ class Server:
 		finally:
 			await self.unregister(ws)
 
-	async def request(self, url: str) -> dict[ str, Any ] | Any:
+	async def request(self, url: str) -> dict[ str, Any ]:
 		try:
 			async with httpx.AsyncClient(timeout=10.0) as client:
 				response = await client.get(url)
 				response.raise_for_status()
 				return response.json()
 		except httpx.ConnectTimeout:
-			print("Помилка: Час підключення закінчився")
+			return { "error": "Помилка: Час підключення закінчився" }
 		except httpx.ReadTimeout:
-			return "Помилка: Час читання даних минув"
+			return { "error": "Помилка: Час читання даних минув" }
 		except httpx.ConnectError:
-			return "Помилка: Не вдалося підключитися до сервера"
+			return { "error": "Помилка: Не вдалося підключитися до сервера" }
 		except httpx.HTTPStatusError as exc:
-			return f"Помилка HTTP {exc.response.status_code}: {exc.response.text}"
+			return { "error": f"Помилка HTTP {exc.response.status_code}: {exc.response.text}" }
 		except httpx.RequestError as exc:
-			return f"Виникла помилка при запиті: {exc}"
+			return { "error": f"Виникла помилка при запиті: {exc}" }
 
 		return "Не вдалося отримати курс валют. Спробуйте ще раз пізніше."
 
@@ -88,24 +88,21 @@ class Server:
 			if not raw_days.isdigit():
 				return "Кількість днів повинна бути цілим невід’ємним числом."
 			days_count = int(raw_days)
-			if days_count < 0 or days_count > 10:
-				return "Кількість днів повинна бути в межах від 0 до 10."
+			if (days_count < 0 or days_count > 10) and days_count >= 1:
+				return "Кількість днів повинна бути в межах від 1 до 10."
 		exchanges: list[ str ] = [ ]
 		for days in range(days_count):
 
 			date_string: str = self.build_date_string(days)
 			exchange: dict = await self.get_exchange(date_string)
 
-			formatted_rates: str = str()
 			form: list[ str ] = [ ]
 			for rate_data in exchange[ "exchangeRate" ]:
 				sale_rate: float | int | str = ""
 				purchase_rate: float | int | str = ""
 
-
 				if not isinstance(rate_data, dict):
 					continue
-
 
 				if "currency" in rate_data:
 					if rate_data[ "currency" ] in DEFAULT_CURRENCIES:
@@ -131,8 +128,8 @@ class Server:
 
 			formatted: str = "\n".join(form)
 			data = (f'date: {exchange[ "date" ]}'
-					f'\nbaseCurrencyLit: {exchange[ "baseCurrencyLit" ]}'
-					f'\nexchangeRate: {formatted}\n\n')
+			        f'\nbaseCurrencyLit: {exchange[ "baseCurrencyLit" ]}'
+			        f'\nexchangeRate: {formatted}\n\n')
 			exchanges.append(data)
 		return '\n'.join(exchanges)
 
