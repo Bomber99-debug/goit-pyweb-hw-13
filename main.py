@@ -120,17 +120,16 @@ class Server:
 									):
 								purchase_rate = rate_data[ "purchaseRateNB" ]
 
-						formatted_rates = {
-								"currency": rate_data[ "currency" ],
-								"sale"    : sale_rate,
-								"purchase": purchase_rate,
-								}
+						formatted_rates = (
+								f'currency: {rate_data[ "currency" ]} ',
+								f'sale: {sale_rate} ',
+								f'purchase: {purchase_rate}',
+								)
 
-			data = {
-					"date"           : exchange[ "date" ],
-					"baseCurrencyLit": exchange[ "baseCurrencyLit" ],
-					"exchangeRate"   : [ formatted_rates ],
-					}
+			data = (f'date: {exchange[ "date" ]}\n',
+					f'baseCurrencyLit: {exchange[ "baseCurrencyLit" ]},\n'
+					f'exchangeRate: {formatted_rates},\n'
+					)
 			exchanges.append(data)
 		return str(exchanges)
 
