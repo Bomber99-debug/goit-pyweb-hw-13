@@ -9,8 +9,6 @@ from argparse import Namespace
 from datetime import timedelta, datetime, date
 import json
 
-from urllib3.util import timeout
-
 DEFAULT_CURRENCIES: list[ str ] = [ "EUR", "USD" ]
 
 
@@ -30,6 +28,7 @@ async def fetch_exchange_rates(
 		return { "error": f"Помилка aiohttp: {e}" }
 	except Exception as e:
 		return { "error": f"Непередбачена помилка: {e}" }
+
 
 
 def build_date_string(days_ago: int) -> str:

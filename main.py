@@ -43,24 +43,23 @@ class Server:
 			await self.unregister(ws)
 
 	async def request(self, url: str) -> dict[ str, Any ] | Any:
-		async with httpx.AsyncClient() as client:
-			response: httpx.Response = await client.get(url)
-			try:
-				if response.status_code == 200:
-					result: dict[ str, object ] = response.json()
-					return result
-			except httpx.ConnectTimeout:
-				print("Помилка: Час підключення закінчився")
-			except httpx.ReadTimeout:
-				return "Помилка: Час читання даних минув"
-			except httpx.ConnectError:
-				return "Помилка: Не вдалося підключитися до сервера"
-			except httpx.HTTPStatusError as exc:
-				return f"Помилка HTTP {exc.response.status_code}: {exc.response.text}"
-			except httpx.RequestError as exc:
-				return f"Виникла помилка при запиті: {exc}"
+		try:
+			async with httpx.AsyncClient(timeout=10.0) as client:
+				response = await client.get(url)
+				response.raise_for_status()
+				return response.json()
+		except httpx.ConnectTimeout:
+			print("Помилка: Час підключення закінчився")
+		except httpx.ReadTimeout:
+			return "Помилка: Час читання даних минув"
+		except httpx.ConnectError:
+			return "Помилка: Не вдалося підключитися до сервера"
+		except httpx.HTTPStatusError as exc:
+			return f"Помилка HTTP {exc.response.status_code}: {exc.response.text}"
+		except httpx.RequestError as exc:
+			return f"Виникла помилка при запиті: {exc}"
 
-			return "Не вдалося отримати курс валют. Спробуйте ще раз пізніше."
+		return "Не вдалося отримати курс валют. Спробуйте ще раз пізніше."
 
 	def build_date_string(self, days_ago: int) -> str:
 		"""Повертає дату у форматі dd.mm.YYYY для API ПриватБанку."""
@@ -82,7 +81,7 @@ class Server:
 
 	async def format_return_exchange(self, message: str) -> str:
 		parts: list[ str ] = message.split(" ")
-		days_count: int = 0
+		days_count: int = 1
 
 		if len(parts) > 1:
 			raw_days: str = parts[ 1 ]
@@ -111,17 +110,17 @@ class Server:
 				if "currency" in rate_data:
 					if rate_data[ "currency" ] in DEFAULT_CURRENCIES:
 
-						if "saleRateNB" in rate_data:
-							if isinstance(rate_data[ "saleRateNB" ], float) or isinstance(
-									rate_data[ "saleRateNB" ], int,
+						if "saleRate" in rate_data:
+							if isinstance(rate_data[ "saleRate" ], float) or isinstance(
+									rate_data[ "saleRate" ], int,
 									):
-								sale_rate = rate_data[ "saleRateNB" ]
+								sale_rate = rate_data[ "saleRate" ]
 
-						if "purchaseRateNB" in rate_data:
-							if isinstance(rate_data[ "purchaseRateNB" ], float) or isinstance(
-									rate_data[ "purchaseRateNB" ], int,
+						if "purchaseRate" in rate_data:
+							if isinstance(rate_data[ "purchaseRate" ], float) or isinstance(
+									rate_data[ "purchaseRate" ], int,
 									):
-								purchase_rate = rate_data[ "purchaseRateNB" ]
+								purchase_rate = rate_data[ "purchaseRate" ]
 
 						formatted_rates = (
 								f'\n\tcurrency: {rate_data[ "currency" ]}'
@@ -130,10 +129,10 @@ class Server:
 
 						form.append(formatted_rates)
 
-			formated: str = "\n".join(form)
+			formatted: str = "\n".join(form)
 			data = (f'date: {exchange[ "date" ]}'
 					f'\nbaseCurrencyLit: {exchange[ "baseCurrencyLit" ]}'
-					f'\nexchangeRate: {formated}\n\n')
+					f'\nexchangeRate: {formatted}\n\n')
 			exchanges.append(data)
 		return '\n'.join(exchanges)
 
