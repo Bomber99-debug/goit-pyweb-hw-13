@@ -12,8 +12,9 @@ RUN poetry config virtualenvs.create false \
     && poetry install --no-interaction --no-ansi --no-root
 
 COPY main.py ./
-COPY index.html ./templates
-COPY pyproject.toml ./static
+COPY index.html ./
+COPY styles ./styles
+COPY pyproject.toml ./
 
 EXPOSE 8080
 
