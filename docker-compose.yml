@@ -10,9 +10,6 @@ services:
     ports:
       - "8080:8080"
 
-    volumes:
-      - .:/app
-
     environment:
       WATCHFILES_FORCE_POLLING: "true"
 
@@ -27,7 +24,3 @@ services:
 
     ports:
       - "8000:80"
-
-    volumes:
-      - ./index.html:/usr/share/nginx/html/index.html
-      - ./styles:/usr/share/nginx/html/styles

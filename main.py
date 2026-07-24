@@ -98,16 +98,19 @@ class Server:
 			exchange: dict = await self.get_exchange(date_string)
 
 			formatted_rates: str = str()
-
+			form: list[ str ] = [ ]
 			for rate_data in exchange[ "exchangeRate" ]:
 				sale_rate: float | int | str = ""
 				purchase_rate: float | int | str = ""
 
+
 				if not isinstance(rate_data, dict):
 					continue
 
+
 				if "currency" in rate_data:
 					if rate_data[ "currency" ] in DEFAULT_CURRENCIES:
+
 						if "saleRateNB" in rate_data:
 							if isinstance(rate_data[ "saleRateNB" ], float) or isinstance(
 									rate_data[ "saleRateNB" ], int,
@@ -120,14 +123,17 @@ class Server:
 									):
 								purchase_rate = rate_data[ "purchaseRateNB" ]
 
-						formatted_rates = (f'currency: {rate_data[ "currency" ]}, sale: {sale_rate}, purchase: '
-										   f'{purchase_rate}')
+						formatted_rates = (
+								f'\n\tcurrency: {rate_data[ "currency" ]}'
+								f'\n\tsale: {sale_rate}'
+								f'\n\tpurchase: {purchase_rate}')
 
-			data = (
-					f'date: {exchange[ "date" ]}\n'
-					f'baseCurrencyLit: {exchange[ "baseCurrencyLit" ]},\n'
-					f'exchangeRate: {formatted_rates},\n'
-					)
+						form.append(formatted_rates)
+
+			formated: str = "\n".join(form)
+			data = (f'date: {exchange[ "date" ]}'
+					f'\nbaseCurrencyLit: {exchange[ "baseCurrencyLit" ]}'
+					f'\nexchangeRate: {formated}\n\n')
 			exchanges.append(data)
 		return '\n'.join(exchanges)
 
