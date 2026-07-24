@@ -16,19 +16,19 @@ async def fetch_exchange_rates(
 		session: aiohttp.ClientSession, url: str,
 		) -> dict[ str, str ] | Any:
 	"""Повертає JSON-відповідь API або словник з повідомленням про помилку."""
-	async with session.get(url) as response:
-		try:
-			if response.status == 200:
-				return await response.json()
-		except ClientConnectorError as e:
-			return { f"Помилка підключення до {url}: {e}" }
-		except asyncio.TimeoutError:
-			return { f"Тайм-аут запиту до {url}" }
-		except ClientError as e:
-			return { f"Помилка aiohttp: {e}" }
-		except Exception as e:
-			return { f"Непередбачена помилка: {e}" }
-		return { "error": "Не вдалося отримати курс валют. Спробуйте пізніше." }
+	try:
+		async with session.get(url) as response:
+			response.raise_for_status()
+			return await response.json()
+	except ClientConnectorError as e:
+		return { f"Помилка підключення до {url}: {e}" }
+	except asyncio.TimeoutError:
+		return { f"Тайм-аут запиту до {url}" }
+	except ClientError as e:
+		return { f"Помилка aiohttp: {e}" }
+	except Exception as e:
+		return { f"Непередбачена помилка: {e}" }
+	return { "error": "Не вдалося отримати курс валют. Спробуйте пізніше." }
 
 
 def build_date_string(days_ago: int) -> str:
