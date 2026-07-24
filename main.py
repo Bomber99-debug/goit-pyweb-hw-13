@@ -80,16 +80,7 @@ class Server:
 		async with async_open(apath, 'a') as file:
 			await file.write(f'{datetime.now().replace(microsecond=0)}: Enter message: {message_exchange}\n')
 
-	def format_str(self, exchengs: dict) -> str:
-		if exchengs:
-			return str(
-				f'date: {exchengs[ "date" ]}, '
-				f'baseCurrencyLit: {exchengs[ "baseCurrencyLit" ]}, '
-				f'exchangeRate: '
-				f'sale: {exchengs[ "exchangeRate" ][ 0 ]}',
-					)
-
-	async def format_return_exchange(self, message: str) -> list[ dict[ str, str ] ]:
+	async def format_return_exchange(self, message: str) -> str:
 		parts: list[ str ] = message.split(" ")
 		days_count: int = 0
 
@@ -140,8 +131,6 @@ class Server:
 					"baseCurrencyLit": exchange[ "baseCurrencyLit" ],
 					"exchangeRate"   : [ formatted_rates ],
 					}
-			data: str = self.format_str(data)
-			logging.info(f'data: {data}')
 			exchanges.append(data)
 		return str(exchanges)
 
