@@ -91,13 +91,13 @@ class Server:
 			days_count = int(raw_days)
 			if days_count < 0 or days_count > 10:
 				return "Кількість днів повинна бути в межах від 0 до 10."
-		exchanges: list[ dict[ str, str | Any ] ] = [ ]
+		exchanges: list[ str ] = [ ]
 		for days in range(days_count):
 
 			date_string: str = self.build_date_string(days)
 			exchange: dict = await self.get_exchange(date_string)
 
-			formatted_rates: dict[ str, float | int | str ] = { }
+			formatted_rates: str = str()
 
 			for rate_data in exchange[ "exchangeRate" ]:
 				sale_rate: float | int | str = ""
@@ -120,18 +120,16 @@ class Server:
 									):
 								purchase_rate = rate_data[ "purchaseRateNB" ]
 
-						formatted_rates = (
-								f'currency: {rate_data[ "currency" ]} ',
-								f'sale: {sale_rate} ',
-								f'purchase: {purchase_rate}',
-								)
+						formatted_rates = (f'currency: {rate_data[ "currency" ]}, sale: {sale_rate}, purchase: '
+										   f'{purchase_rate}')
 
-			data = (f'date: {exchange[ "date" ]}\n',
+			data = (
+					f'date: {exchange[ "date" ]}\n'
 					f'baseCurrencyLit: {exchange[ "baseCurrencyLit" ]},\n'
 					f'exchangeRate: {formatted_rates},\n'
 					)
 			exchanges.append(data)
-		return str(exchanges)
+		return '\n'.join(exchanges)
 
 	async def distribute(self, ws: WebSocketServerProtocol) -> None:
 		async for message in ws:
