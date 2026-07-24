@@ -1,0 +1,33 @@
+services:
+  goit-13-server:
+    build:
+      context: .
+      dockerfile: Dockerfile_py
+
+    image: goit-13-server
+    container_name: goit-13-server
+
+    ports:
+      - "8080:8080"
+
+    volumes:
+      - .:/app
+
+    environment:
+      WATCHFILES_FORCE_POLLING: "true"
+
+
+  goit-13-html:
+    build:
+      context: .
+      dockerfile: Dockerfile_html
+
+    image: goit-13-html
+    container_name: goit-13-html
+
+    ports:
+      - "8000:80"
+
+    volumes:
+      - ./index.html:/usr/share/nginx/html/index.html
+      - ./styles:/usr/share/nginx/html/styles

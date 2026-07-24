@@ -1,0 +1,6 @@
+FROM nginx:alpine-slim
+
+COPY index.html /usr/share/nginx/html/index.html
+COPY styles /usr/share/nginx/html/styles
+
+EXPOSE 80

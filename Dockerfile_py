@@ -12,10 +12,7 @@ RUN poetry config virtualenvs.create false \
     && poetry install --no-interaction --no-ansi --no-root
 
 COPY main.py ./
-COPY index.html ./
-COPY styles ./styles
-COPY pyproject.toml ./
 
 EXPOSE 8080
 
-CMD ["python3", "main.py"]
+CMD ["python", "-m", "watchfiles", "--filter", "python", "python main.py", "/app"]
