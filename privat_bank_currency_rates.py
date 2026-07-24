@@ -9,6 +9,8 @@ from argparse import Namespace
 from datetime import timedelta, datetime, date
 import json
 
+from urllib3.util import timeout
+
 DEFAULT_CURRENCIES: list[ str ] = [ "EUR", "USD" ]
 
 
@@ -21,14 +23,13 @@ async def fetch_exchange_rates(
 			response.raise_for_status()
 			return await response.json()
 	except ClientConnectorError as e:
-		return { f"Помилка підключення до {url}: {e}" }
+		return { "error": f"Помилка підключення до {url}: {e}" }
 	except asyncio.TimeoutError:
-		return { f"Тайм-аут запиту до {url}" }
+		return { "error": f"Тайм-аут запиту до {url}" }
 	except ClientError as e:
-		return { f"Помилка aiohttp: {e}" }
+		return { "error": f"Помилка aiohttp: {e}" }
 	except Exception as e:
-		return { f"Непередбачена помилка: {e}" }
-	return { "error": "Не вдалося отримати курс валют. Спробуйте пізніше." }
+		return { "error": f"Непередбачена помилка: {e}" }
 
 
 def build_date_string(days_ago: int) -> str:
@@ -146,7 +147,9 @@ async def main(days_count: int) -> list[ dict[ str, object ] ]:
 	"""Отримує й форматує курси валют за вказану кількість днів."""
 	urls = generate_urls(days_count)
 
-	async with aiohttp.ClientSession() as session:
+	time_out = aiohttp.ClientTimeout(total=10)
+
+	async with aiohttp.ClientSession(timeout=time_out) as session:
 		request_coroutines = [
 				fetch_exchange_rates(session, url) for url in urls
 				]
